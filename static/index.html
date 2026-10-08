@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThreadHunter - AI Clothing Deal Finder & Price Tracker</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#0a0d14] text-slate-100 flex flex-col min-h-screen">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-white/10 px-4 lg:px-8 py-3.5 backdrop-blur-xl">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/25">
+          🛍️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+              ThreadHunter
+            </h1>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              AI Powered
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400">Clothing Deals, Price Watcher & Style AI</p>
+        </div>
+      </div>
+
+      <!-- Center Nav Tabs -->
+      <nav class="hidden md:flex items-center p-1 rounded-xl bg-slate-900/80 border border-white/10 shadow-inner">
+        <button data-tab="chat" class="nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition-all flex items-center gap-1.5">
+          💬 <span>Deal Stylist</span>
+        </button>
+        <button data-tab="deals" class="nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          🛍️ <span>Deal Explorer</span>
+        </button>
+        <button data-tab="analytics" class="nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          📊 <span>Insights</span>
+        </button>
+        <button data-tab="watchlist" class="nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          ⭐ <span>Watchlist</span>
+          <span id="watchlist-badge-count" class="px-1.5 py-0.2 rounded-full bg-indigo-500/30 text-[10px] text-indigo-300 font-mono">0</span>
+        </button>
+        <button data-tab="settings" class="nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          ⚡ <span>Model Failover</span>
+        </button>
+      </nav>
+
+      <!-- Right Header Actions (AI Status + Quick Switch Simulator) -->
+      <div class="flex items-center gap-2.5">
+        <!-- Live AI Model Badge -->
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-white/10 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-emerald"></span>
+          <span class="text-slate-400 text-[11px]">Model:</span>
+          <span id="header-active-model" class="font-mono text-indigo-300 font-bold">gemini-2.5-flash</span>
+        </div>
+
+        <!-- Quick 429 Failover Trigger -->
+        <button onclick="simulateRateLimit()" title="Simulate HTTP 429 Rate Limit and trigger auto-fallback" class="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 text-xs font-medium transition-all flex items-center gap-1.5">
+          <span>⚡</span>
+          <span class="hidden lg:inline">Test Failover</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Nav Strip -->
+    <div class="flex md:hidden items-center justify-around mt-3 pt-2 border-t border-white/5 text-xs">
+      <button data-tab="chat" class="nav-btn py-1 text-slate-400 font-semibold">💬 Chat</button>
+      <button data-tab="deals" class="nav-btn py-1 text-slate-400 font-semibold">🛍️ Deals</button>
+      <button data-tab="analytics" class="nav-btn py-1 text-slate-400 font-semibold">📊 Insights</button>
+      <button data-tab="watchlist" class="nav-btn py-1 text-slate-400 font-semibold">⭐ Saved</button>
+      <button data-tab="settings" class="nav-btn py-1 text-slate-400 font-semibold">⚡ Engine</button>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: AI DEAL STYLIST & CHATBOT                         -->
+    <!-- ======================================================== -->
+    <section id="tab-chat" class="tab-content flex flex-col h-[calc(100vh-140px)]">
+      
+      <!-- Chat Header Info Bar -->
+      <div class="glass-panel rounded-2xl p-4 mb-4 border border-white/10 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-lg">
+            👗
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-slate-100">ThreadHunter Stylist AI</h2>
+            <p class="text-xs text-slate-400">Ask for outfit ideas, brand sales, price checks, or deals under a budget</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span id="keys-count-badge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">
+            Checking API keys...
+          </span>
+          <button onclick="switchTab('settings')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium">
+            Configure Keys
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Prompt Suggestion Chips -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-2 mb-3 text-xs scrollbar-none">
+        <span class="text-slate-400 shrink-0 font-medium">Quick Sparks:</span>
+        <button onclick="sendPresetPrompt('Find me winter coats & jackets under $60 with high discounts')" class="px-3 py-1.5 rounded-full glass-panel hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/10 shrink-0 transition-colors">
+          🧥 Winter coats under $60
+        </button>
+        <button onclick="sendPresetPrompt('Show me the biggest sneaker price drops right now')" class="px-3 py-1.5 rounded-full glass-panel hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/10 shrink-0 transition-colors">
+          👟 Sneaker price drops
+        </button>
+        <button onclick="sendPresetPrompt('What are the best deals over 50% off right now with coupons?')" class="px-3 py-1.5 rounded-full glass-panel hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/10 shrink-0 transition-colors">
+          🔥 Steals over 50% off
+        </button>
+        <button onclick="sendPresetPrompt('Recommend a full casual streetwear outfit under $120 total')" class="px-3 py-1.5 rounded-full glass-panel hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/10 shrink-0 transition-colors">
+          ✨ Casual outfit under $120
+        </button>
+        <button onclick="sendPresetPrompt('Are there any deals on Levi denim jeans or carpenter pants?')" class="px-3 py-1.5 rounded-full glass-panel hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/10 shrink-0 transition-colors">
+          👖 Denim & cargo bargains
+        </button>
+      </div>
+
+      <!-- Chat Messages Scroll Area -->
+      <div id="chat-messages" class="flex-1 glass-panel rounded-2xl p-4 lg:p-6 overflow-y-auto space-y-4 border border-white/10 mb-4 shadow-inner">
+        
+        <!-- Welcome Message -->
+        <div class="flex gap-3 animate-msg">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white shrink-0 shadow">
+            🛍️
+          </div>
+          <div class="max-w-[85%] px-5 py-4 rounded-2xl rounded-tl-sm glass-panel text-slate-200 text-sm leading-relaxed border border-white/10">
+            <h3 class="text-base font-bold text-indigo-300 mb-1">Hey! I'm your AI Deal Stylist 🎯</h3>
+            <p>I constantly track discounts, store clearance racks, and verified coupon codes across Nike, Uniqlo, ASOS, Zara, Nordstrom, Levi's, and more.</p>
+            <p class="mt-2 text-slate-300">
+              Tell me what you're shopping for (e.g., <em>"hoodies under $40"</em>, <em>"gym wear for women"</em>, or <em>"best sneaker sales"</em>) and I'll find you top savings with live store links!
+            </p>
+            <div class="mt-3 p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-xs text-indigo-200">
+              💡 <strong>Smart Failover Enabled:</strong> If free-tier Gemini API rate limits are hit, I will seamlessly switch to the next model in the fallback chain without breaking our conversation!
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Chat Input Bar -->
+      <form id="chat-form" class="glass-panel p-2 rounded-2xl border border-white/10 flex items-center gap-2 shadow-2xl">
+        <input 
+          id="chat-input" 
+          type="text" 
+          placeholder="Ask for deals, styles, or specific clothing pieces (e.g., 'Oversized fleece hoodie under $35')..." 
+          class="flex-1 bg-transparent px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+          autocomplete="off"
+        />
+        <button 
+          type="submit" 
+          class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+        >
+          <span>Find Deals</span>
+          <span class="text-xs">➜</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: DEAL EXPLORER                                     -->
+    <!-- ======================================================== -->
+    <section id="tab-deals" class="tab-content hidden space-y-6">
+      
+      <!-- Search & Filters Toolbar -->
+      <div class="glass-panel p-5 rounded-2xl border border-white/10 space-y-4">
+        
+        <!-- Search Row -->
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 text-sm">
+              🔍
+            </span>
+            <input 
+              id="deal-search-input" 
+              type="text" 
+              placeholder="Search by product name, brand (Nike, Zara, Uniqlo), or style..." 
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          <!-- Live Actions -->
+          <button onclick="fetchLiveDealsFromFeeds()" title="Pull real live deals from online fashion feeds" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/20 whitespace-nowrap">
+            <span>📡</span>
+            <span>Fetch Live Online Deals</span>
+          </button>
+          <button onclick="triggerLiveSearchPrompt()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap">
+            <span>🌐</span>
+            <span>Crawl Custom Item</span>
+          </button>
+        </div>
+
+        <!-- Category Pills -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
+          <button data-category="All" class="cat-pill px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white border border-indigo-500 font-medium transition-all shrink-0">
+            All Deals
+          </button>
+          <button data-category="Jackets" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            🧥 Jackets & Coats
+          </button>
+          <button data-category="Hoodies" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            👕 Hoodies & Sweats
+          </button>
+          <button data-category="Sneakers" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            👟 Sneakers & Shoes
+          </button>
+          <button data-category="Denim" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            👖 Denim & Pants
+          </button>
+          <button data-category="T-Shirts" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            👚 Tops & Tees
+          </button>
+          <button data-category="Sweaters" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            🧶 Knitwear
+          </button>
+          <button data-category="Activewear" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            🏃 Gym & Active
+          </button>
+          <button data-category="Dresses" class="cat-pill px-3.5 py-1.5 rounded-xl bg-slate-800/60 text-slate-300 border border-white/10 font-medium hover:text-white transition-all shrink-0">
+            👗 Dresses
+          </button>
+        </div>
+
+        <!-- Filter Dropdowns Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-white/5 text-xs">
+          
+          <!-- Store Filter -->
+          <div>
+            <label class="block text-slate-400 mb-1 font-medium">Store / Retailer</label>
+            <select id="filter-store" class="w-full px-3 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="All">All Stores</option>
+              <option value="Nike Store">Nike Store</option>
+              <option value="Uniqlo">Uniqlo</option>
+              <option value="Nordstrom Rack">Nordstrom Rack</option>
+              <option value="Zara">Zara</option>
+              <option value="ASOS">ASOS</option>
+              <option value="SSENSE">SSENSE</option>
+              <option value="End Clothing">End Clothing</option>
+              <option value="Amazon Fashion">Amazon</option>
+            </select>
+          </div>
+
+          <!-- Gender Filter -->
+          <div>
+            <label class="block text-slate-400 mb-1 font-medium">Gender</label>
+            <select id="filter-gender" class="w-full px-3 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="All">All Genders</option>
+              <option value="Men">Men</option>
+              <option value="Women">Women</option>
+              <option value="Unisex">Unisex</option>
+            </select>
+          </div>
+
+          <!-- Sort Filter -->
+          <div>
+            <label class="block text-slate-400 mb-1 font-medium">Sort By</label>
+            <select id="filter-sort" class="w-full px-3 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="discount_pct">Highest Discount %</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="rating">Highest Rated</option>
+            </select>
+          </div>
+
+          <!-- Discount Slider -->
+          <div>
+            <div class="flex justify-between items-center text-slate-400 mb-1 font-medium">
+              <span>Min Discount:</span>
+              <span id="filter-discount-val" class="text-indigo-400 font-bold">0%+</span>
+            </div>
+            <input 
+              id="filter-discount-slider" 
+              type="range" 
+              min="0" 
+              max="70" 
+              step="5" 
+              value="0" 
+              class="w-full accent-indigo-500 cursor-pointer"
+            />
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Deals Count Header -->
+      <div class="flex items-center justify-between px-1">
+        <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">
+          🔥 Live Catalog Drops
+        </h3>
+        <span id="deals-count-label" class="text-xs text-slate-400">Loading deals...</span>
+      </div>
+
+      <!-- Deals Grid -->
+      <div id="deals-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: MARKET INSIGHTS & ANALYTICS                       -->
+    <!-- ======================================================== -->
+    <section id="tab-analytics" class="tab-content hidden space-y-6">
+      
+      <!-- Top Stats Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-panel p-5 rounded-2xl border border-white/10">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Deals Tracked</div>
+          <div id="stat-total-deals" class="text-3xl font-extrabold text-slate-100 font-mono">0</div>
+          <p class="text-xs text-slate-500 mt-1">Across 8 major clothing retailers</p>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl border border-white/10">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Average Discount</div>
+          <div id="stat-avg-discount" class="text-3xl font-extrabold text-emerald-400 font-mono">0%</div>
+          <p class="text-xs text-slate-500 mt-1">Average markdown from MSRP</p>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl border border-white/10">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Average Deal Price</div>
+          <div id="stat-avg-price" class="text-3xl font-extrabold text-indigo-400 font-mono">$0.00</div>
+          <p class="text-xs text-slate-500 mt-1">Budget-friendly apparel benchmark</p>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl border border-white/10">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Failovers Executed</div>
+          <div id="stat-total-switches" class="text-3xl font-extrabold text-amber-400 font-mono">0</div>
+          <p class="text-xs text-slate-500 mt-1">Automatic 429 rate limit switches</p>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Category Discounts Bar Chart -->
+        <div class="glass-panel p-5 rounded-2xl border border-white/10">
+          <h3 class="text-sm font-bold text-slate-200 mb-1 flex items-center justify-between">
+            <span>Average Discount % by Clothing Category</span>
+            <span class="text-xs text-indigo-400 font-normal">Market Benchmark</span>
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Categories with deepest markdowns are top right</p>
+          <div class="h-64 relative">
+            <canvas id="categoryDiscountChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Store Deal Distribution Doughnut Chart -->
+        <div class="glass-panel p-5 rounded-2xl border border-white/10">
+          <h3 class="text-sm font-bold text-slate-200 mb-1 flex items-center justify-between">
+            <span>Store Deal Distribution</span>
+            <span class="text-xs text-emerald-400 font-normal">Retailer Spread</span>
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Volume of active sales across online storefronts</p>
+          <div class="h-64 relative">
+            <canvas id="storeDealsChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Top 5 Steals Leaderboard Table -->
+      <div class="glass-panel p-5 rounded-2xl border border-white/10">
+        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+          <span>🏆 Top Steal Deals of the Day (Deepest Discounts)</span>
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-white/10 text-slate-400 uppercase tracking-wider text-[11px]">
+                <th class="py-2.5 px-3">Brand</th>
+                <th class="py-2.5 px-3">Product</th>
+                <th class="py-2.5 px-3">Store</th>
+                <th class="py-2.5 px-3">Deal Price</th>
+                <th class="py-2.5 px-3">Discount</th>
+                <th class="py-2.5 px-3">Action</th>
+              </tr>
+            </thead>
+            <tbody id="top-steals-tbody">
+              <!-- Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: WATCHLIST & PRICE TRACKER                         -->
+    <!-- ======================================================== -->
+    <section id="tab-watchlist" class="tab-content hidden space-y-6">
+      
+      <div class="glass-panel p-6 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+            <span>⭐ My Deal Watchlist & Price Alerts</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Keep track of your favorite garments and monitor cumulative savings</p>
+        </div>
+
+        <div class="flex items-center gap-4 bg-slate-900/80 px-4 py-2 rounded-xl border border-white/10">
+          <div class="text-right">
+            <div class="text-[11px] text-slate-400">Total Potential Savings</div>
+            <div id="watchlist-total-saved" class="text-lg font-bold text-emerald-400 font-mono">$0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="watchlist-container" class="space-y-3">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: AI MODEL FAILOVER & API KEYS SETTINGS             -->
+    <!-- ======================================================== -->
+    <section id="tab-settings" class="tab-content hidden space-y-6">
+      
+      <!-- Failover Architecture Explanation Card -->
+      <div class="glass-panel p-6 rounded-2xl border border-white/10">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">
+            ⚡
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-100">Gemini Rate-Limit Failover Architecture</h2>
+            <p class="text-xs text-slate-400">Zero downtime deal hunting through cascading model fallbacks & multi-key rotation</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed mt-2 mb-4">
+          Google Gemini's free tier has request-per-minute (RPM) and quota limits. Whenever an API request returns 
+          <code class="px-1.5 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-500/30">HTTP 429 Too Many Requests</code> or 
+          <code class="px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-500/30">503 Overloaded</code>, 
+          ThreadHunter automatically records the incident and cascades to the next available model in the priority chain without interrupting your search!
+        </p>
+
+        <!-- Visual Fallback Pipeline Diagram -->
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-white/10">
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Fallback Priority Hierarchy</div>
+          <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+            <span class="px-3 py-1.5 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 font-bold">1. gemini-2.5-flash (Primary)</span>
+            <span class="text-slate-500">➔</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-white/10">2. gemini-2.0-flash</span>
+            <span class="text-slate-500">➔</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-white/10">3. gemini-2.0-flash-lite</span>
+            <span class="text-slate-500">➔</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-white/10">4. gemini-1.5-flash</span>
+            <span class="text-slate-500">➔</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-white/10">5. gemini-1.5-flash-8b</span>
+            <span class="text-slate-500">➔</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-white/10">6. gemini-1.5-pro</span>
+            <span class="text-slate-500">➔</span>
+            <span class="px-3 py-1.5 rounded-lg bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">7. Local Stylist Heuristic (Offline)</span>
+          </div>
+        </div>
+
+        <!-- Simulation Trigger Row -->
+        <div class="mt-4 flex flex-wrap items-center gap-3 pt-4 border-t border-white/5">
+          <button onclick="simulateRateLimit()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-semibold text-xs transition-all shadow-md shadow-amber-500/20 flex items-center gap-2">
+            <span>⚡</span>
+            <span>Simulate 429 Quota Rate Limit</span>
+          </button>
+          <span class="text-xs text-slate-400">Click to instantly trigger a failover and see the model pointer rotate in the audit table below!</span>
+        </div>
+      </div>
+
+      <!-- API Key & Active Model Configuration Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Gemini API Key Manager -->
+        <div class="glass-panel p-5 rounded-2xl border border-white/10 space-y-4">
+          <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <span>🔑 Gemini API Key Manager</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Paste your free Gemini API key(s) below. Supports multiple comma-separated keys for automatic key rotation on quota limits!
+          </p>
+
+          <div>
+            <textarea 
+              id="gemini-api-keys-input" 
+              rows="2" 
+              placeholder="Paste AI Studio API key(s): AIzaSy..., AIzaSy..."
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-xs text-slate-100 font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+            ></textarea>
+          </div>
+
+          <button onclick="saveApiKeys()" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-md shadow-indigo-600/20">
+            Save & Activate API Key(s)
+          </button>
+        </div>
+
+        <!-- Manual Model Selector -->
+        <div class="glass-panel p-5 rounded-2xl border border-white/10 space-y-4">
+          <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <span>🎯 Active Model Override</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Manually switch active model to benchmark response speed or latency differences across Gemini models.
+          </p>
+
+          <div>
+            <label class="block text-slate-400 text-xs mb-1 font-medium">Select Model</label>
+            <select id="settings-model-select" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500">
+              <!-- Populated by JS -->
+            </select>
+          </div>
+
+          <button onclick="updateActiveModel()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-colors border border-white/10">
+            Apply Model Selection
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Model Switch Audit Log Table -->
+      <div class="glass-panel p-5 rounded-2xl border border-white/10">
+        <h3 class="text-sm font-bold text-slate-200 mb-1 flex items-center justify-between">
+          <span>📋 Failover Audit Log</span>
+          <span class="text-xs text-slate-400 font-normal">Real-Time Event Stream</span>
+        </h3>
+        <p class="text-xs text-slate-400 mb-3">Complete log of all rate limit triggers, key rotations, and model transitions</p>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-white/10 text-slate-400 uppercase tracking-wider text-[11px]">
+                <th class="py-2 px-3">Timestamp</th>
+                <th class="py-2 px-3">Transition</th>
+                <th class="py-2 px-3">Trigger Reason</th>
+                <th class="py-2 px-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="switch-logs-tbody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="glass-panel border-t border-white/5 py-4 px-4 text-center text-xs text-slate-500 mt-auto">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        <strong>ThreadHunter</strong> — AI Fashion Deal Search & Model Failover Engine
+      </div>
+      <div>
+        Pair Programming Assistant • Google Gemini 2.5 / 2.0 / 1.5 Cascading Fallback
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Alert -->
+  <div id="toast" class="glass-panel px-5 py-3 rounded-xl border flex items-center gap-3">
+    <span class="text-lg">🔔</span>
+    <span id="toast-msg" class="text-xs font-semibold">Notification</span>
+  </div>
+
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
